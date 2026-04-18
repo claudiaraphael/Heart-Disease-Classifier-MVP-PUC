@@ -1,70 +1,48 @@
 from model import *
 
-# To run: pytest -v test_modelos.py
+# Para rodar: pytest -v test_modelos.py
 
-# Instanciação das Classes
+# Instanciação das classes auxiliares
 carregador = Carregador()
-modelo = Model()
-avaliador = Avaliador()
-pipeline = Pipeline()
+avaliador  = Avaliador()
+pipeline   = Pipeline()
 
-# Parâmetros    
-url_dados = "./MachineLearning/data/test_dataset_diabetes.csv"
-colunas = ['preg', 'plas', 'pres', 'skin', 'test', 'mass', 'pedi', 'age', 'class']
+# Caminhos dos dados de teste gerados no notebook
+url_X_test = "./MachineLearning/data/X_test_heart_disease.csv"
+url_y_test = "./MachineLearning/data/y_test_heart_disease.csv"
 
-# Carga dos dados
-dataset = carregador.carregar_dados(url_dados, colunas)
-array = dataset.values
-X = array[:,0:-1]
-y = array[:,-1]
-    
-# Método para testar o modelo de Regressão Logística a partir do arquivo correspondente
-# O nome do método a ser testado necessita começar com "test_"
-def test_modelo_lr():  
-    # Importando o modelo de regressão logística
-    lr_path = './MachineLearning/models/diabetes_lr.pkl'
-    modelo_lr = modelo.carrega_modelo(lr_path)
+# Colunas do dataset Heart Disease (sem o target)
+colunas = [
+    "age", "sex", "cp", "trestbps", "chol",
+    "fbs", "restecg", "thalach", "exang",
+    "oldpeak", "slope", "ca", "thal",
+]
 
-    # Obtendo as métricas da Regressão Logística
-    acuracia_lr = avaliador.avaliar(modelo_lr, X, y)
-    
-    # Testando as métricas da Regressão Logística 
-    # Modifique as métricas de acordo com seus requisitos
-    assert acuracia_lr >= 0.78 
-    # assert recall_lr >= 0.5 
-    # assert precisao_lr >= 0.5 
-    # assert f1_lr >= 0.5 
+# Carregando os dados de teste
+X_test_df = carregador.carregar_dados(url_X_test, colunas)
+y_test_df = carregador.carregar_dados(url_y_test, ["target"])
 
-# Método para testar modelo KNN a partir do arquivo correspondente
-def test_modelo_knn():
-    # Importando modelo de KNN
-    knn_path = './MachineLearning/models/diabetes_knn.pkl'
-    modelo_knn = modelo.carrega_modelo(knn_path)
+X = X_test_df.values
+y = y_test_df.values.ravel()
 
-    # Obtendo as métricas do KNN
-    acuracia_knn = avaliador.avaliar(modelo_knn, X, y)
-    
-    # Testando as métricas do KNN
-    # Modifique as métricas de acordo com seus requisitos
-    assert acuracia_knn >= 0.78
-    # assert recall_knn >= 0.5 
-    # assert precisao_knn >= 0.5 
-    # assert f1_knn >= 0.5 
 
-# Método para testar pipeline Random Forest a partir do arquivo correspondente
-def test_modelo_rf():
-    # Importando pipeline de Random Forest
-    rf_path = './MachineLearning/pipelines/rf_diabetes_pipeline.pkl'
-    modelo_rf = pipeline.carrega_pipeline(rf_path)
+def test_modelo_svm():
+    """Testa se o pipeline SVM atinge acurácia mínima de 80% no conjunto de teste.
 
-    # Obtendo as métricas do Random Forest
-    acuracia_rf = avaliador.avaliar(modelo_rf, X, y)
-    
-    # Testando as métricas do Random Forest
-    # Modifique as métricas de acordo com seus requisitos
-    assert acuracia_rf >= 0.78
-    # assert recall_rf >= 0.5 
-    # assert precisao_rf >= 0.5 
-    # assert f1_rf >= 0.5
-    
+    O threshold de 80% foi definido com base nos resultados da validação
+    cruzada durante o treinamento, onde o SVM com StandardScaler atingiu
+    consistentemente acurácia acima desse valor.
 
+    Este teste garante que, caso o modelo seja substituído, o novo modelo
+    só será implantado se atender ao mesmo requisito mínimo de desempenho.
+    """
+    pipeline_path = "./MachineLearning/pipelines/svm_heart_disease_pipeline.pkl"
+    modelo_svm = pipeline.carrega_pipeline(pipeline_path)
+
+    acuracia = avaliador.avaliar(modelo_svm, X, y)
+    print(f"\nAcurácia do SVM no conjunto de teste: {acuracia:.4f}")
+
+    assert acuracia >= 0.80, (
+        f"Acurácia {acuracia:.4f} abaixo do threshold mínimo de 0.80. "
+        "O modelo não atende aos requisitos de desempenho."
+    )
