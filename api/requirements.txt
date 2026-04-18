@@ -9,6 +9,7 @@ SQLAlchemy-Utils
 typing_extensions
 scikit-learn==1.8.0
 pandas
+seaborn
 matplotlib
 numpy
 pytest
