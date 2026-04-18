@@ -11,7 +11,7 @@ from flask_cors import CORS
 
 
 # Instanciando o objeto OpenAPI
-info = Info(title="Minha API", version="1.0.0")
+info = Info(title="Heart Disease Classifier API", version="1.0.0")
 app = OpenAPI(
     __name__, info=info, static_folder="../front", static_url_path="/front"
 )
@@ -24,11 +24,11 @@ home_tag = Tag(
 )
 paciente_tag = Tag(
     name="Paciente",
-    description="Adição, visualização, remoção e predição de pacientes com Diabetes",
+    description="Adição, visualização, remoção e predição de doença cardíaca em pacientes",
 )
 
 
-# Rota home - redireciona para o frontend
+# Rota home — redireciona para o frontend
 @app.get("/", tags=[home_tag])
 def home():
     """Redireciona para o index.html do frontend."""
@@ -49,29 +49,23 @@ def docs():
     responses={"200": PacienteViewSchema, "404": ErrorSchema},
 )
 def get_pacientes():
-    """Lista todos os pacientes cadastrados na base
-    Args:
-       none
+    """Lista todos os pacientes cadastrados na base.
 
     Returns:
         list: lista de pacientes cadastrados na base
     """
     logger.debug("Coletando dados sobre todos os pacientes")
-    # Criando conexão com a base
     session = Session()
-    # Buscando todos os pacientes
     pacientes = session.query(Paciente).all()
 
     if not pacientes:
-        # Se não houver pacientes
         return {"pacientes": []}, 200
     else:
-        logger.debug(f"%d pacientes econtrados" % len(pacientes))
-        print(pacientes)
+        logger.debug(f"%d pacientes encontrados" % len(pacientes))
         return apresenta_pacientes(pacientes), 200
 
 
-# Rota de adição de paciente
+# Rota de adição de paciente + predição
 @app.post(
     "/paciente",
     tags=[paciente_tag],
@@ -82,77 +76,81 @@ def get_pacientes():
     },
 )
 def predict(form: PacienteSchema):
-    """Adiciona um novo paciente à base de dados
-    Retorna uma representação dos pacientes e diagnósticos associados.
+    """Adiciona um novo paciente à base de dados e retorna o diagnóstico
+    de doença cardíaca previsto pelo modelo de machine learning.
 
+    O modelo é carregado de forma embarcada no back-end a partir do
+    arquivo .pkl gerado no notebook de treinamento.
     """
-    # Instanciando classes
+    # Instanciando as classes auxiliares
     preprocessador = PreProcessador()
     pipeline = Pipeline()
 
     # Recuperando os dados do formulário
-    name = form.name
-    preg = form.preg
-    plas = form.plas
-    pres = form.pres
-    skin = form.skin
-    test = form.test
-    mass = form.mass
-    pedi = form.pedi
-    age = form.age
+    name      = form.name
+    age       = form.age
+    sex       = form.sex
+    cp        = form.cp
+    trestbps  = form.trestbps
+    chol      = form.chol
+    fbs       = form.fbs
+    restecg   = form.restecg
+    thalach   = form.thalach
+    exang     = form.exang
+    oldpeak   = form.oldpeak
+    slope     = form.slope
+    ca        = form.ca
+    thal      = form.thal
 
-    # Preparando os dados para o modelo
+    # Preparando os dados de entrada para o modelo
     X_input = preprocessador.preparar_form(form)
-    # Carregando modelo
-    model_path = "./MachineLearning/pipelines/rf_diabetes_pipeline.pkl"
+
+    # Carregando o pipeline (scaler + modelo) salvo no treinamento
+    model_path = "./MachineLearning/pipelines/svm_heart_disease_pipeline.pkl"
     modelo = pipeline.carrega_pipeline(model_path)
-    # Realizando a predição
+
+    # Realizando a predição (0 = sem doença, 1 = com doença)
     outcome = int(modelo.predict(X_input)[0])
 
     paciente = Paciente(
         name=name,
-        preg=preg,
-        plas=plas,
-        pres=pres,
-        skin=skin,
-        test=test,
-        mass=mass,
-        pedi=pedi,
         age=age,
+        sex=sex,
+        cp=cp,
+        trestbps=trestbps,
+        chol=chol,
+        fbs=fbs,
+        restecg=restecg,
+        thalach=thalach,
+        exang=exang,
+        oldpeak=oldpeak,
+        slope=slope,
+        ca=ca,
+        thal=thal,
         outcome=outcome,
     )
-    logger.debug(f"Adicionando produto de nome: '{paciente.name}'")
+    logger.debug(f"Adicionando paciente: '{paciente.name}'")
 
     try:
-        # Criando conexão com a base
         session = Session()
 
         # Checando se paciente já existe na base
         if session.query(Paciente).filter(Paciente.name == form.name).first():
             error_msg = "Paciente já existente na base :/"
-            logger.warning(
-                f"Erro ao adicionar paciente '{paciente.name}', {error_msg}"
-            )
+            logger.warning(f"Erro ao adicionar paciente '{paciente.name}': {error_msg}")
             return {"message": error_msg}, 409
 
-        # Adicionando paciente
         session.add(paciente)
-        # Efetivando o comando de adição
         session.commit()
-        # Concluindo a transação
-        logger.debug(f"Adicionado paciente de nome: '{paciente.name}'")
+        logger.debug(f"Paciente adicionado: '{paciente.name}'")
         return apresenta_paciente(paciente), 200
 
-    # Caso ocorra algum erro na adição
     except Exception as e:
         error_msg = "Não foi possível salvar novo item :/"
-        logger.warning(
-            f"Erro ao adicionar paciente '{paciente.name}', {error_msg}"
-        )
+        logger.warning(f"Erro ao adicionar paciente '{paciente.name}': {error_msg}")
         return {"message": error_msg}, 400
 
 
-# Métodos baseados em nome
 # Rota de busca de paciente por nome
 @app.get(
     "/paciente",
@@ -160,34 +158,27 @@ def predict(form: PacienteSchema):
     responses={"200": PacienteViewSchema, "404": ErrorSchema},
 )
 def get_paciente(query: PacienteBuscaSchema):
-    """Faz a busca por um paciente cadastrado na base a partir do nome
+    """Busca um paciente cadastrado na base pelo nome.
 
     Args:
-        nome (str): nome do paciente
+        name (str): nome do paciente
 
     Returns:
         dict: representação do paciente e diagnóstico associado
     """
-
     paciente_nome = query.name
-    logger.debug(f"Coletando dados sobre produto #{paciente_nome}")
-    # criando conexão com a base
+    logger.debug(f"Buscando paciente: '{paciente_nome}'")
     session = Session()
-    # fazendo a busca
     paciente = (
         session.query(Paciente).filter(Paciente.name == paciente_nome).first()
     )
 
     if not paciente:
-        # se o paciente não foi encontrado
-        error_msg = f"Paciente {paciente_nome} não encontrado na base :/"
-        logger.warning(
-            f"Erro ao buscar produto '{paciente_nome}', {error_msg}"
-        )
+        error_msg = f"Paciente '{paciente_nome}' não encontrado na base :/"
+        logger.warning(error_msg)
         return {"mesage": error_msg}, 404
     else:
-        logger.debug(f"Paciente econtrado: '{paciente.name}'")
-        # retorna a representação do paciente
+        logger.debug(f"Paciente encontrado: '{paciente.name}'")
         return apresenta_paciente(paciente), 200
 
 
@@ -198,39 +189,30 @@ def get_paciente(query: PacienteBuscaSchema):
     responses={"200": PacienteViewSchema, "404": ErrorSchema},
 )
 def delete_paciente(query: PacienteBuscaSchema):
-    """Remove um paciente cadastrado na base a partir do nome
+    """Remove um paciente cadastrado na base pelo nome.
 
     Args:
-        nome (str): nome do paciente
+        name (str): nome do paciente
 
     Returns:
-        msg: Mensagem de sucesso ou erro
+        msg: mensagem de sucesso ou erro
     """
-
     paciente_nome = unquote(query.name)
-    logger.debug(f"Deletando dados sobre paciente #{paciente_nome}")
-
-    # Criando conexão com a base
+    logger.debug(f"Removendo paciente: '{paciente_nome}'")
     session = Session()
-
-    # Buscando paciente
     paciente = (
         session.query(Paciente).filter(Paciente.name == paciente_nome).first()
     )
 
     if not paciente:
         error_msg = "Paciente não encontrado na base :/"
-        logger.warning(
-            f"Erro ao deletar paciente '{paciente_nome}', {error_msg}"
-        )
+        logger.warning(f"Erro ao remover paciente '{paciente_nome}': {error_msg}")
         return {"message": error_msg}, 404
     else:
         session.delete(paciente)
         session.commit()
-        logger.debug(f"Deletado paciente #{paciente_nome}")
-        return {
-            "message": f"Paciente {paciente_nome} removido com sucesso!"
-        }, 200
+        logger.debug(f"Paciente removido: '{paciente_nome}'")
+        return {"message": f"Paciente '{paciente_nome}' removido com sucesso!"}, 200
 
 
 if __name__ == "__main__":
