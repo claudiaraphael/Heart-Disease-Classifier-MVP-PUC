@@ -1,259 +1,238 @@
+const API_URL = 'http://127.0.0.1:5000';
+
 /*
-  --------------------------------------------------------------------------------------
-  Função para obter a lista existente do servidor via requisição GET
-  --------------------------------------------------------------------------------------
+  ─────────────────────────────────────────
+  TEMA DIA / NOITE
+  ─────────────────────────────────────────
 */
-const getList = async () => {
-  let url = 'http://127.0.0.1:5000/pacientes';
-  fetch(url, {
-    method: 'get',
-  })
-    .then((response) => response.json())
-    .then((data) => {
-      data.pacientes.forEach(item => insertList(item.name, 
-                                                item.preg, 
-                                                item.plas,
-                                                item.pres,
-                                                item.skin,
-                                                item.test,
-                                                item.mass,
-                                                item.pedi,
-                                                item.age,
-                                                item.outcome
-                                              ))
-    })
-    .catch((error) => {
-      console.error('Error:', error);
-    });
+function toggleTheme() {
+    const body = document.body;
+    const moonIcon = document.getElementById('moonIcon');
+    const sunIcon  = document.getElementById('sunIcon');
+
+    if (body.classList.contains('dark')) {
+        body.classList.replace('dark', 'light');
+        moonIcon.style.display = 'none';
+        sunIcon.style.display  = 'block';
+    } else {
+        body.classList.replace('light', 'dark');
+        moonIcon.style.display = 'block';
+        sunIcon.style.display  = 'none';
+    }
 }
 
 /*
-  --------------------------------------------------------------------------------------
-  Função para limpar a tabela antes de recarregar os dados
-  --------------------------------------------------------------------------------------
+  ─────────────────────────────────────────
+  CARGA INICIAL — lista todos os pacientes
+  ─────────────────────────────────────────
 */
-const clearTable = () => {
-  var table = document.getElementById('myTable');
-  // Remove todas as linhas exceto o cabeçalho (primeira linha)
-  while(table.rows.length > 1) {
-    table.deleteRow(1);
-  }
-}
-
-/*
-  --------------------------------------------------------------------------------------
-  Função para recarregar a lista completa do servidor
-  --------------------------------------------------------------------------------------
-*/
-const refreshList = async () => {
-  clearTable();
-  await getList();
-}
-
-/*
-  --------------------------------------------------------------------------------------
-  Chamada da função para carregamento inicial dos dados
-  --------------------------------------------------------------------------------------
-*/
-// Carrega a lista apenas uma vez quando a página é carregada
-document.addEventListener('DOMContentLoaded', function() {
-  getList();
+document.addEventListener('DOMContentLoaded', () => {
+    loadPatients();
 });
 
-
-
-
-/*
-  --------------------------------------------------------------------------------------
-  Função para colocar um item na lista do servidor via requisição POST
-  --------------------------------------------------------------------------------------
-*/
-const postItem = async (inputPatient, inputPreg, inputPlas,
-                        inputPres, inputSkin, inputTest, 
-                        inputMass, inputPedi, inputAge) => {
-    
-  const formData = new FormData();
-  formData.append('name', inputPatient);
-  formData.append('preg', inputPreg);
-  formData.append('plas', inputPlas);
-  formData.append('pres', inputPres);
-  formData.append('skin', inputSkin);
-  formData.append('test', inputTest);
-  formData.append('mass', inputMass);
-  formData.append('pedi', inputPedi);
-  formData.append('age', inputAge);
-
-  let url = 'http://127.0.0.1:5000/paciente';
-  return fetch(url, {
-    method: 'post',
-    body: formData
-  })
-    .then((response) => response.json())
-    .then((data) => {
-      return data; // Retorna os dados do paciente com o diagnóstico
-    })
-    .catch((error) => {
-      console.error('Error:', error);
-      throw error;
-    });
-}
-
-
-/*
-  --------------------------------------------------------------------------------------
-  Função para criar um botão close para cada item da lista
-  --------------------------------------------------------------------------------------
-*/
-const insertDeleteButton = (parent) => {
-  let span = document.createElement("span");
-  let txt = document.createTextNode("\u00D7");
-  span.className = "close";
-  span.appendChild(txt);
-  parent.appendChild(span);
-}
-
-/*
-  --------------------------------------------------------------------------------------
-  Função para remover um item da lista de acordo com o click no botão close
-  --------------------------------------------------------------------------------------
-*/
-const removeElement = () => {
-  let close = document.getElementsByClassName("close");
-  // var table = document.getElementById('myTable');
-  let i;
-  for (i = 0; i < close.length; i++) {
-    close[i].onclick = function () {
-      let div = this.parentElement.parentElement;
-      const nomeItem = div.getElementsByTagName('td')[0].innerHTML
-      if (confirm("Você tem certeza?")) {
-        div.remove()
-        deleteItem(nomeItem)
-        alert("Removido!")
-      }
+async function loadPatients() {
+    try {
+        const response = await fetch(`${API_URL}/pacientes`);
+        const data = await response.json();
+        renderTable(data.pacientes || []);
+    } catch (error) {
+        console.error('Erro ao carregar pacientes:', error);
     }
-  }
 }
 
 /*
-  --------------------------------------------------------------------------------------
-  Função para deletar um item da lista do servidor via requisição DELETE
-  --------------------------------------------------------------------------------------
+  ─────────────────────────────────────────
+  SUBMISSÃO DO FORMULÁRIO
+  ─────────────────────────────────────────
 */
-const deleteItem = (item) => {
-  console.log(item)
-  let url = 'http://127.0.0.1:5000/paciente?name='+item;
-  fetch(url, {
-    method: 'delete'
-  })
-    .then((response) => response.json())
-    .catch((error) => {
-      console.error('Error:', error);
-    });
-}
+async function submitForm() {
+    const name     = document.getElementById('name').value.trim();
+    const age      = document.getElementById('age').value;
+    const sex      = document.getElementById('sex').value;
+    const cp       = document.getElementById('cp').value;
+    const trestbps = document.getElementById('trestbps').value;
+    const chol     = document.getElementById('chol').value;
+    const fbs      = document.getElementById('fbs').value;
+    const restecg  = document.getElementById('restecg').value;
+    const thalach  = document.getElementById('thalach').value;
+    const exang    = document.getElementById('exang').value;
+    const oldpeak  = document.getElementById('oldpeak').value;
+    const slope    = document.getElementById('slope').value;
+    const ca       = document.getElementById('ca').value;
+    const thal     = document.getElementById('thal').value;
 
-/*
-  --------------------------------------------------------------------------------------
-  Função para adicionar um novo item com nome, quantidade e valor 
-  --------------------------------------------------------------------------------------
-*/
-const newItem = async (event) => {
-  event.preventDefault();
+    // Validação básica
+    if (!name) {
+        alert('Por favor, informe o nome do paciente.');
+        return;
+    }
 
-  let inputPatient = document.getElementById("newInput").value;
-  let inputPreg = document.getElementById("newPreg").value;
-  let inputPlas = document.getElementById("newPlas").value;
-  let inputPres = document.getElementById("newPres").value;
-  let inputSkin = document.getElementById("newSkin").value;
-  let inputTest = document.getElementById("newTest").value;
-  let inputMass = document.getElementById("newMass").value;
-  let inputPedi = document.getElementById("newPedi").value;
-  let inputAge = document.getElementById("newAge").value;
-
-  // Verifique se o nome do produto já existe antes de adicionar
-  const checkUrl = `http://127.0.0.1:5000/pacientes?nome=${inputPatient}`;
-  fetch(checkUrl, {
-    method: 'get'
-  })
-    .then((response) => response.json())
-    .then(async (data) => {
-      if (data.pacientes && data.pacientes.some(item => item.name === inputPatient)) {
-        alert("O paciente já está cadastrado.\nCadastre o paciente com um nome diferente ou atualize o existente.");
-      } else if (inputPatient === '') {
-        alert("O nome do paciente não pode ser vazio!");
-      } else if (isNaN(inputPreg) || isNaN(inputPlas) || isNaN(inputPres) || isNaN(inputSkin) || isNaN(inputTest) || isNaN(inputMass) || isNaN(inputPedi) || isNaN(inputAge)) {
-        alert("Esse(s) campo(s) precisam ser números!");
-      } else {
-        try {
-          // Envia os dados para o servidor e aguarda a resposta com o diagnóstico
-          const result = await postItem(inputPatient, inputPreg, inputPlas, inputPres, inputSkin, inputTest, inputMass, inputPedi, inputAge);
-            // Limpa o formulário
-          document.getElementById("newInput").value = "";
-          document.getElementById("newPreg").value = "";
-          document.getElementById("newPlas").value = "";
-          document.getElementById("newPres").value = "";
-          document.getElementById("newSkin").value = "";
-          document.getElementById("newTest").value = "";
-          document.getElementById("newMass").value = "";
-          document.getElementById("newPedi").value = "";
-          document.getElementById("newAge").value = "";
-          
-          // Recarrega a lista completa para mostrar o novo paciente com o diagnóstico
-          await refreshList();
-          
-          // Mostra mensagem de sucesso com o diagnóstico
-          const diagnostico = result.outcome === 1 ? "DIABÉTICO" : "NÃO DIABÉTICO";
-          alert(`Paciente adicionado com sucesso!\nDiagnóstico: ${diagnostico}`);
-          
-          // Scroll para a tabela para mostrar o novo resultado
-          document.querySelector('.items').scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'center' 
-          });
-          
-        } catch (error) {
-          console.error('Erro ao adicionar paciente:', error);
-          alert("Erro ao adicionar paciente. Tente novamente.");
+    const fields = { age, sex, cp, trestbps, chol, fbs, restecg, thalach, exang, oldpeak, slope, ca, thal };
+    for (const [key, val] of Object.entries(fields)) {
+        if (val === '' || val === null || val === undefined) {
+            alert(`Por favor, preencha todos os campos clínicos.`);
+            return;
         }
-      }
-    })
-    .catch((error) => {
-      console.error('Error:', error);
-      alert("Erro ao verificar paciente existente. Tente novamente.");
+    }
+
+    const formData = new FormData();
+    formData.append('name',     name);
+    formData.append('age',      age);
+    formData.append('sex',      sex);
+    formData.append('cp',       cp);
+    formData.append('trestbps', trestbps);
+    formData.append('chol',     chol);
+    formData.append('fbs',      fbs);
+    formData.append('restecg',  restecg);
+    formData.append('thalach',  thalach);
+    formData.append('exang',    exang);
+    formData.append('oldpeak',  oldpeak);
+    formData.append('slope',    slope);
+    formData.append('ca',       ca);
+    formData.append('thal',     thal);
+
+    try {
+        const response = await fetch(`${API_URL}/paciente`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (response.status === 409) {
+            alert('Já existe um paciente com esse nome. Utilize um nome diferente.');
+            return;
+        }
+
+        if (!response.ok) {
+            alert('Erro ao processar a requisição. Tente novamente.');
+            return;
+        }
+
+        const data = await response.json();
+        showResult(data);
+        clearForm();
+        loadPatients();
+
+    } catch (error) {
+        console.error('Erro na requisição:', error);
+        alert('Não foi possível conectar ao servidor. Verifique se a API está rodando.');
+    }
+}
+
+/*
+  ─────────────────────────────────────────
+  EXIBE O CARD DE RESULTADO
+  ─────────────────────────────────────────
+*/
+function showResult(data) {
+    const card    = document.getElementById('resultCard');
+    const content = document.getElementById('resultContent');
+
+    const isHigh = data.outcome === 1;
+
+    card.className = 'card result-card ' + (isHigh ? 'result-high' : 'result-low');
+    card.style.display = 'block';
+
+    content.innerHTML = isHigh
+        ? `
+            <span class="result-icon">⚠</span>
+            <p class="result-title">Alta probabilidade de doença cardíaca</p>
+            <p class="result-desc">
+                O modelo identificou indicadores clínicos associados a risco elevado de doença cardíaca
+                para o paciente <strong>${data.name}</strong>.
+                Recomenda-se avaliação médica especializada.
+            </p>
+          `
+        : `
+            <span class="result-icon">✓</span>
+            <p class="result-title">Baixa probabilidade de doença cardíaca</p>
+            <p class="result-desc">
+                O modelo não identificou indicadores clínicos significativos de risco cardíaco
+                para o paciente <strong>${data.name}</strong>.
+                Manutenção de acompanhamento preventivo regular é recomendada.
+            </p>
+          `;
+
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+/*
+  ─────────────────────────────────────────
+  RENDERIZA A TABELA DE HISTÓRICO
+  ─────────────────────────────────────────
+*/
+function renderTable(pacientes) {
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
+
+    if (pacientes.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="empty-state">
+                    Nenhum paciente cadastrado ainda.
+                </td>
+            </tr>`;
+        return;
+    }
+
+    pacientes.forEach(p => {
+        const isHigh  = p.outcome === 1;
+        const sexLabel = p.sex === 1 ? 'Masculino' : 'Feminino';
+        const badge   = isHigh
+            ? `<span class="badge badge-high">Alto risco</span>`
+            : `<span class="badge badge-low">Baixo risco</span>`;
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${p.name}</td>
+            <td>${p.age}</td>
+            <td>${sexLabel}</td>
+            <td>${p.trestbps} mmHg</td>
+            <td>${p.chol} mg/dl</td>
+            <td>${p.thalach} bpm</td>
+            <td>${badge}</td>
+            <td>
+                <button class="btn-delete" onclick="deletePatient('${p.name}')" title="Remover paciente">×</button>
+            </td>
+        `;
+        tbody.appendChild(row);
     });
 }
 
+/*
+  ─────────────────────────────────────────
+  DELETAR PACIENTE
+  ─────────────────────────────────────────
+*/
+async function deletePatient(name) {
+    if (!confirm(`Remover o paciente "${name}" do histórico?`)) return;
+
+    try {
+        const response = await fetch(`${API_URL}/paciente?name=${encodeURIComponent(name)}`, {
+            method: 'DELETE',
+        });
+
+        if (response.ok) {
+            loadPatients();
+        } else {
+            alert('Erro ao remover paciente.');
+        }
+    } catch (error) {
+        console.error('Erro ao deletar paciente:', error);
+        alert('Não foi possível conectar ao servidor.');
+    }
+}
 
 /*
-  --------------------------------------------------------------------------------------
-  Função para inserir items na lista apresentada
-  --------------------------------------------------------------------------------------
+  ─────────────────────────────────────────
+  LIMPAR FORMULÁRIO
+  ─────────────────────────────────────────
 */
-const insertList = (namePatient, preg, plas, pres, skin, test, mass, pedi, age, outcome) => {
-  var item = [namePatient, preg, plas, pres, skin, test, mass, pedi, age];
-  var table = document.getElementById('myTable');
-  var row = table.insertRow();
-
-  // Insere as células com os dados do paciente
-  for (var i = 0; i < item.length; i++) {
-    var cell = row.insertCell(i);
-    cell.textContent = item[i];
-  }
-
-  // Insere a célula do diagnóstico com styling
-  var diagnosticCell = row.insertCell(item.length);
-  const diagnosticText = outcome === 1 ? "DIABÉTICO" : "NÃO DIABÉTICO";
-  diagnosticCell.textContent = diagnosticText;
-  
-  // Aplica styling baseado no diagnóstico
-  if (outcome === 1) {
-    diagnosticCell.className = "diagnostic-positive";
-  } else {
-    diagnosticCell.className = "diagnostic-negative";
-  }
-
-  // Insere o botão de deletar
-  var deleteCell = row.insertCell(-1);
-  insertDeleteButton(deleteCell);
-
-  removeElement();
+function clearForm() {
+    const ids = ['name', 'age', 'sex', 'cp', 'trestbps', 'chol', 'fbs',
+                 'restecg', 'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal'];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el.tagName === 'SELECT') el.selectedIndex = 0;
+        else el.value = '';
+    });
 }
