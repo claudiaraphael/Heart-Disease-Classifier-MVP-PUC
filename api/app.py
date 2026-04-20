@@ -1,6 +1,7 @@
 from flask_openapi3 import OpenAPI, Info, Tag
 from flask import redirect
 from urllib.parse import unquote
+import os
 
 from sqlalchemy.exc import IntegrityError
 
@@ -56,13 +57,14 @@ def get_pacientes():
     """
     logger.debug("Coletando dados sobre todos os pacientes")
     session = Session()
-    pacientes = session.query(Paciente).all()
-
-    if not pacientes:
-        return {"pacientes": []}, 200
-    else:
+    try:
+        pacientes = session.query(Paciente).all()
+        if not pacientes:
+            return {"pacientes": []}, 200
         logger.debug(f"%d pacientes encontrados" % len(pacientes))
         return apresenta_pacientes(pacientes), 200
+    finally:
+        session.close()
 
 
 # Rota de adição de paciente + predição
@@ -75,67 +77,47 @@ def get_pacientes():
         "409": ErrorSchema,
     },
 )
-def predict(form: PacienteSchema):
+def predict(body: PacienteSchema):
     """Adiciona um novo paciente à base de dados e retorna o diagnóstico
     de doença cardíaca previsto pelo modelo de machine learning.
 
     O modelo é carregado de forma embarcada no back-end a partir do
     arquivo .pkl gerado no notebook de treinamento.
     """
-    # Instanciando as classes auxiliares
     preprocessador = PreProcessador()
     pipeline = Pipeline()
 
-    # Recuperando os dados do formulário
-    name      = form.name
-    age       = form.age
-    sex       = form.sex
-    cp        = form.cp
-    trestbps  = form.trestbps
-    chol      = form.chol
-    fbs       = form.fbs
-    restecg   = form.restecg
-    thalach   = form.thalach
-    exang     = form.exang
-    oldpeak   = form.oldpeak
-    slope     = form.slope
-    ca        = form.ca
-    thal      = form.thal
+    X_input = preprocessador.preparar_form(body)
 
-    # Preparando os dados de entrada para o modelo
-    X_input = preprocessador.preparar_form(form)
-
-    # Carregando o pipeline (scaler + modelo) salvo no treinamento
-    model_path = "./MachineLearning/pipelines/svm_heart_disease_pipeline.pkl"
+    model_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "MachineLearning", "pipelines", "svm_heart_disease_pipeline.pkl"
+    )
     modelo = pipeline.carrega_pipeline(model_path)
-
-    # Realizando a predição (0 = sem doença, 1 = com doença)
     outcome = int(modelo.predict(X_input)[0])
 
     paciente = Paciente(
-        name=name,
-        age=age,
-        sex=sex,
-        cp=cp,
-        trestbps=trestbps,
-        chol=chol,
-        fbs=fbs,
-        restecg=restecg,
-        thalach=thalach,
-        exang=exang,
-        oldpeak=oldpeak,
-        slope=slope,
-        ca=ca,
-        thal=thal,
+        name=body.name,
+        age=body.age,
+        sex=body.sex,
+        cp=body.cp,
+        trestbps=body.trestbps,
+        chol=body.chol,
+        fbs=body.fbs,
+        restecg=body.restecg,
+        thalach=body.thalach,
+        exang=body.exang,
+        oldpeak=body.oldpeak,
+        slope=body.slope,
+        ca=body.ca,
+        thal=body.thal,
         outcome=outcome,
     )
     logger.debug(f"Adicionando paciente: '{paciente.name}'")
 
+    session = Session()
     try:
-        session = Session()
-
-        # Checando se paciente já existe na base
-        if session.query(Paciente).filter(Paciente.name == form.name).first():
+        if session.query(Paciente).filter(Paciente.name == body.name).first():
             error_msg = "Paciente já existente na base :/"
             logger.warning(f"Erro ao adicionar paciente '{paciente.name}': {error_msg}")
             return {"message": error_msg}, 409
@@ -146,9 +128,13 @@ def predict(form: PacienteSchema):
         return apresenta_paciente(paciente), 200
 
     except Exception as e:
+        session.rollback()
         error_msg = "Não foi possível salvar novo item :/"
-        logger.warning(f"Erro ao adicionar paciente '{paciente.name}': {error_msg}")
+        logger.warning(f"Erro ao adicionar paciente '{paciente.name}': {error_msg} — {type(e).__name__}: {e}")
         return {"message": error_msg}, 400
+
+    finally:
+        session.close()
 
 
 # Rota de busca de paciente por nome
@@ -169,17 +155,16 @@ def get_paciente(query: PacienteBuscaSchema):
     paciente_nome = query.name
     logger.debug(f"Buscando paciente: '{paciente_nome}'")
     session = Session()
-    paciente = (
-        session.query(Paciente).filter(Paciente.name == paciente_nome).first()
-    )
-
-    if not paciente:
-        error_msg = f"Paciente '{paciente_nome}' não encontrado na base :/"
-        logger.warning(error_msg)
-        return {"message": error_msg}, 404
-    else:
+    try:
+        paciente = session.query(Paciente).filter(Paciente.name == paciente_nome).first()
+        if not paciente:
+            error_msg = f"Paciente '{paciente_nome}' não encontrado na base :/"
+            logger.warning(error_msg)
+            return {"message": error_msg}, 404
         logger.debug(f"Paciente encontrado: '{paciente.name}'")
         return apresenta_paciente(paciente), 200
+    finally:
+        session.close()
 
 
 # Rota de remoção de paciente por nome
@@ -200,19 +185,18 @@ def delete_paciente(query: PacienteBuscaSchema):
     paciente_nome = unquote(query.name)
     logger.debug(f"Removendo paciente: '{paciente_nome}'")
     session = Session()
-    paciente = (
-        session.query(Paciente).filter(Paciente.name == paciente_nome).first()
-    )
-
-    if not paciente:
-        error_msg = "Paciente não encontrado na base :/"
-        logger.warning(f"Erro ao remover paciente '{paciente_nome}': {error_msg}")
-        return {"message": error_msg}, 404
-    else:
+    try:
+        paciente = session.query(Paciente).filter(Paciente.name == paciente_nome).first()
+        if not paciente:
+            error_msg = "Paciente não encontrado na base :/"
+            logger.warning(f"Erro ao remover paciente '{paciente_nome}': {error_msg}")
+            return {"message": error_msg}, 404
         session.delete(paciente)
         session.commit()
         logger.debug(f"Paciente removido: '{paciente_nome}'")
         return {"message": f"Paciente '{paciente_nome}' removido com sucesso!"}, 200
+    finally:
+        session.close()
 
 
 if __name__ == "__main__":

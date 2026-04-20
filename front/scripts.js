@@ -75,26 +75,28 @@ async function submitForm() {
         }
     }
 
-    const formData = new FormData();
-    formData.append('name',     name);
-    formData.append('age',      age);
-    formData.append('sex',      sex);
-    formData.append('cp',       cp);
-    formData.append('trestbps', trestbps);
-    formData.append('chol',     chol);
-    formData.append('fbs',      fbs);
-    formData.append('restecg',  restecg);
-    formData.append('thalach',  thalach);
-    formData.append('exang',    exang);
-    formData.append('oldpeak',  oldpeak);
-    formData.append('slope',    slope);
-    formData.append('ca',       ca);
-    formData.append('thal',     thal);
+    const payload = {
+        name,
+        age:      parseInt(age),
+        sex:      parseInt(sex),
+        cp:       parseInt(cp),
+        trestbps: parseInt(trestbps),
+        chol:     parseInt(chol),
+        fbs:      parseInt(fbs),
+        restecg:  parseInt(restecg),
+        thalach:  parseInt(thalach),
+        exang:    parseInt(exang),
+        oldpeak:  parseFloat(oldpeak),
+        slope:    parseInt(slope),
+        ca:       parseInt(ca),
+        thal:     parseInt(thal),
+    };
 
     try {
         const response = await fetch(`${API_URL}/paciente`, {
             method: 'POST',
-            body: formData,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
         });
 
         if (response.status === 409) {

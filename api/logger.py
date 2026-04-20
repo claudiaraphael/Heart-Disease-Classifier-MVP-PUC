@@ -3,11 +3,9 @@ import logging
 import os
 
 
-log_path = "log/"
-# Verifica se o diretorio para armexanar os logs não existe
+log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "log")
 if not os.path.exists(log_path):
-   # então cria o diretorio
-   os.makedirs(log_path)
+    os.makedirs(log_path)
 
 
 dictConfig({
@@ -27,36 +25,22 @@ dictConfig({
             "formatter": "default",
             "stream": "ext://sys.stdout",
         },
-        # "email": {
-        #     "class": "logging.handlers.SMTPHandler",
-        #     "formatter": "default",
-        #     "level": "ERROR",
-        #     "mailhost": ("smtp.example.com", 587),
-        #     "fromaddr": "devops@example.com",
-        #     "toaddrs": ["receiver@example.com", "receiver2@example.com"],
-        #     "subject": "Error Logs",
-        #     "credentials": ("username", "password"),
-        # },
         "error_file": {
-            "class": "logging.handlers.RotatingFileHandler",
+            "class": "logging.FileHandler",
             "formatter": "detailed",
-            "filename": "log/gunicorn.error.log",
-            "maxBytes": 10000,
-            "backupCount": 10,
-            "delay": "True",
+            "filename": os.path.join(log_path, "error.log"),
+            "delay": True,
         },
         "detailed_file": {
-            "class": "logging.handlers.RotatingFileHandler",
+            "class": "logging.FileHandler",
             "formatter": "detailed",
-            "filename": "log/gunicorn.detailed.log",
-            "maxBytes": 10000,
-            "backupCount": 10,
-            "delay": "True",
+            "filename": os.path.join(log_path, "detailed.log"),
+            "delay": True,
         }
     },
     "loggers": {
         "gunicorn.error": {
-            "handlers": ["console", "error_file"],  #, email],
+            "handlers": ["console", "error_file"],
             "level": "INFO",
             "propagate": False,
         }

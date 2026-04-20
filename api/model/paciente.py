@@ -24,7 +24,7 @@ class Paciente(Base):
     ca          = Column("Ca",       Integer)
     thal        = Column("Thal",     Integer)
     outcome     = Column("Outcome",  Integer, nullable=True)
-    data_insercao = Column(DateTime, default=datetime.now())
+    data_insercao = Column(DateTime, default=datetime.now)
 
     def __init__(self, name: str, age: int, sex: int, cp: int,
                  trestbps: int, chol: int, fbs: int, restecg: int,
