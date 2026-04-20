@@ -176,7 +176,7 @@ def get_paciente(query: PacienteBuscaSchema):
     if not paciente:
         error_msg = f"Paciente '{paciente_nome}' não encontrado na base :/"
         logger.warning(error_msg)
-        return {"mesage": error_msg}, 404
+        return {"message": error_msg}, 404
     else:
         logger.debug(f"Paciente encontrado: '{paciente.name}'")
         return apresenta_paciente(paciente), 200
